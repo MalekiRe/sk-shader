@@ -1,0 +1,16 @@
+[package]
+name = "sk-shader"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members = ["skshaderc-bindings", "skshader-macro"]
+
+[dependencies]
+skshader-macro = { path = "./skshader-macro"}
+skshaderc-bindings = { path = "./skshaderc-bindings"}
+
+[build-dependencies]
+skshader-macro = { path = "./skshader-macro"}

@@ -1,0 +1,16 @@
+[package]
+name = "skshader-macro"
+version = "0.0.1"
+authors = ["MalekiRe <pocmalek@gmail.com>"]
+description = "A `cargo generate` template for quick-starting a procedural macro crate"
+keywords = ["template", "proc_macro", "procmacro"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1"
+proc-macro2 = "1.0"
+syn = "2.0.18"
+skshaderc-bindings = { path = "../skshaderc-bindings"}
