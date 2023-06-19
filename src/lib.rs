@@ -1,11 +1,9 @@
 use skshader_macro;
-
-skshader_macro::do_env_setting!();
 pub use skshader_macro::include_shader;
 pub use skshaderc_bindings::{compile_shader_file, CompilerSettings, SkShaderCSettings, };
 
-/*
-static thing: &'static [u8] = skshader_macro::include_shader!("hi.hlsl",
+
+static thing: &'static [u8] = include_shader!("hi.hlsl",
 r#"
     //--name                 = unlit/test
     //--time: color          = 2
@@ -72,6 +70,5 @@ r#"
 #[test]
 fn test() {
     let utf8 = unsafe { String::from_utf8_unchecked(thing.to_vec()) };
-    //panic!("{}", utf8);
+    panic!("{}", utf8);
 }
- */

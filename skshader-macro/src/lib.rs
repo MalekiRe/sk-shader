@@ -17,10 +17,6 @@ use syn::__private::TokenStream2;
 use syn::token::Token;
 use skshaderc_bindings::{compile_shader_file, CompilerSettings, SkShaderCSettings};
 
-static mut COUNTER: Mutex<u64> = Mutex::new(0);
-
-static SK_INIT: OnceLock<()> = OnceLock::new();
-
 static SHADER_NAMES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
 static OUT_DIR: OnceLock<String> = OnceLock::new();
@@ -30,51 +26,12 @@ fn get_name_set() -> &'static Mutex<HashSet<String>> {
 }
 
 fn check_init() {
-    SK_INIT.get_or_init(|| {
+    OUT_DIR.get_or_init(|| {
         unsafe {
             skshaderc_bindings::init_sk_shader();
         }
+        std::env::var("OUT_DIR").expect("need to add a build.rs file for the skshader macro to function").to_string()
     });
-}
-
-#[proc_macro]
-pub fn do_env_setting(input: TokenStream) -> TokenStream {
-    OUT_DIR.get_or_init(|| {
-        std::env::var("OUT_DIR").unwrap().to_string()
-    });
-    TokenStream::new()
-}
-
-/// Example of [function-like procedural macro][1].
-///
-/// [1]: https://doc.rust-lang.org/reference/procedural-macros.html#function-like-procedural-macros
-#[proc_macro]
-pub fn my_macro(input: TokenStream) -> TokenStream {
-
-    if unsafe { COUNTER.lock().unwrap().eq(&0) } {
-        unsafe { skshaderc_bindings::init_sk_shader() };
-    }
-
-    let file_contents = input.to_string();
-    // let input = parse_macro_input!(input as DeriveInput);
-    let contents = skshaderc_bindings::compile_shader_file(unsafe { COUNTER.lock().unwrap().to_string() },file_contents, CompilerSettings::new(SkShaderCSettings{
-        debug: false,
-        row_major: false,
-        silent_info: false,
-        silent_err: false,
-        silent_warn: false,
-        optimize_level: 3,
-    }));
-
-    let temp = unsafe { COUNTER.lock().unwrap().clone() } + 32;
-    unsafe { *COUNTER.get_mut().unwrap() = temp; }
-    let s = Literal::byte_string(&contents);
-    let len = contents.len();
-    let tokens = quote! {
-        #s
-    };
-
-    tokens.into()
 }
 
 #[proc_macro]
