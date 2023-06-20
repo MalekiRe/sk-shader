@@ -1,6 +1,5 @@
 use std::ffi::CString;
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::path::PathBuf;
 use std::ptr::null_mut;
 //include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
@@ -29,7 +28,6 @@ extern "C" {
     pub fn init_sk_shader();
 }
 
-
 pub type CompilerSettings = compiler_settings_t;
 
 #[repr(C)]
@@ -56,7 +54,6 @@ pub struct sksc_settings_t {
     pub target_langs: [bool; 5usize],
 }
 
-
 impl CompilerSettings {
     pub fn new(sk_shader_c_settings: SkShaderCSettings) -> Self {
         Self {
@@ -74,19 +71,49 @@ impl CompilerSettings {
                 silent_warn: sk_shader_c_settings.silent_warn,
                 optimize: sk_shader_c_settings.optimize_level as i32,
                 folder: [0; 512],
-                vs_entrypoint: unsafe { let c = CString::new("vs").unwrap(); let b = c.as_bytes_with_nul(); let mut result: [u8; 64] = [0; 64]; result[..b.len()].copy_from_slice(b); std::mem::transmute(result) },
+                vs_entrypoint: unsafe {
+                    let c = CString::new("vs").unwrap();
+                    let b = c.as_bytes_with_nul();
+                    let mut result: [u8; 64] = [0; 64];
+                    result[..b.len()].copy_from_slice(b);
+                    std::mem::transmute(result)
+                },
                 vs_entry_require: false,
-                ps_entrypoint: unsafe { let c = CString::new("ps").unwrap(); let b = c.as_bytes_with_nul(); let mut result: [u8; 64] = [0; 64]; result[..b.len()].copy_from_slice(b); std::mem::transmute(result) },
+                ps_entrypoint: unsafe {
+                    let c = CString::new("ps").unwrap();
+                    let b = c.as_bytes_with_nul();
+                    let mut result: [u8; 64] = [0; 64];
+                    result[..b.len()].copy_from_slice(b);
+                    std::mem::transmute(result)
+                },
                 ps_entry_require: false,
-                cs_entrypoint: unsafe { let c = CString::new("cs").unwrap(); let b = c.as_bytes_with_nul(); let mut result: [u8; 64] = [0; 64]; result[..b.len()].copy_from_slice(b); std::mem::transmute(result) },
+                cs_entrypoint: unsafe {
+                    let c = CString::new("cs").unwrap();
+                    let b = c.as_bytes_with_nul();
+                    let mut result: [u8; 64] = [0; 64];
+                    result[..b.len()].copy_from_slice(b);
+                    std::mem::transmute(result)
+                },
                 cs_entry_require: false,
-                shader_model: unsafe { let c = CString::new("5_0").unwrap(); let b = c.as_bytes_with_nul(); let mut result: [u8; 64] = [0; 64]; result[..b.len()].copy_from_slice(b); std::mem::transmute(result) },
-                shader_model_str: unsafe { let c = CString::new("").unwrap(); let b = c.as_bytes_with_nul(); let mut result: [u8; 16] = [0; 16]; result[..b.len()].copy_from_slice(b); std::mem::transmute(result) },
+                shader_model: unsafe {
+                    let c = CString::new("5_0").unwrap();
+                    let b = c.as_bytes_with_nul();
+                    let mut result: [u8; 64] = [0; 64];
+                    result[..b.len()].copy_from_slice(b);
+                    std::mem::transmute(result)
+                },
+                shader_model_str: unsafe {
+                    let c = CString::new("").unwrap();
+                    let b = c.as_bytes_with_nul();
+                    let mut result: [u8; 16] = [0; 16];
+                    result[..b.len()].copy_from_slice(b);
+                    std::mem::transmute(result)
+                },
                 gl_version: 432,
                 include_folders: null_mut(),
                 include_folder_ct: 0,
                 target_langs: [true, true, true, true, true],
-            }
+            },
         }
     }
 }
@@ -105,12 +132,31 @@ pub struct SkShaderCSettings {
 //     pub fn sksc_log_clear();
 // }
 
-pub fn compile_shader_file(file_name: impl AsRef<str>, contents: impl AsRef<str>, mut settings: CompilerSettings) -> Vec<u8> {
+pub fn compile_shader_file(
+    file_name: impl AsRef<str>,
+    contents: impl AsRef<str>,
+    mut settings: CompilerSettings,
+) -> Vec<u8> {
+    let stereokit_include_path =
+        PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("include/stereokit.hlsli");
+    let stereokit_include_contents = std::fs::read_to_string(stereokit_include_path).unwrap();
+    dbg!(&stereokit_include_contents);
+    let contents = contents
+        .as_ref()
+        .replace("#include \"stereokit.hlsli\"", &stereokit_include_contents);
     let file_name = CString::new(file_name.as_ref()).unwrap();
-    let contents = CString::new(contents.as_ref()).unwrap();
+    let contents = CString::new(contents.as_bytes()).unwrap();
     unsafe {
         let mut sks_size: usize = 0;
-        let bytes: &[u8] = std::slice::from_raw_parts(compile_file_2(file_name.as_ptr(), contents.as_ptr(), &mut settings as *mut CompilerSettings, &mut sks_size as *mut usize) as *const u8, sks_size);
+        let bytes: &[u8] = std::slice::from_raw_parts(
+            compile_file_2(
+                file_name.as_ptr(),
+                contents.as_ptr(),
+                &mut settings as *mut CompilerSettings,
+                &mut sks_size as *mut usize,
+            ) as *const u8,
+            sks_size,
+        );
         bytes.to_vec()
     }
 }
@@ -127,21 +173,31 @@ impl Drop for Test1 {
 
 #[test]
 fn test_compiler() {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
     let contents = include_str!("../skshaderc/shaders/test.hlsl");
     let filename = "test.hlsl";
-    unsafe { init_sk_shader(); }
-    let bytes = compile_shader_file(filename, contents, CompilerSettings::new(SkShaderCSettings{
-        debug: false,
-        row_major: false,
-        silent_info: false,
-        silent_err: false,
-        silent_warn: false,
-        optimize_level: 0,
-    }));
+    unsafe {
+        init_sk_shader();
+    }
+    let bytes = compile_shader_file(
+        filename,
+        contents,
+        CompilerSettings::new(SkShaderCSettings {
+            debug: false,
+            row_major: false,
+            silent_info: false,
+            silent_err: false,
+            silent_warn: false,
+            optimize_level: 0,
+        }),
+    );
 
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
-        .open("temp.test").unwrap();
+        .open("temp.test")
+        .unwrap();
     file.write(&bytes).expect("TODO: panic message");
 }
